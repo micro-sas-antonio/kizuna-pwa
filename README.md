@@ -1,3 +1,6 @@
-﻿# KIZUNA by VOLVA - app instalavel (PWA)
+# Kizuna 2.0 (by VŌLVA) - PWA
 
-Abra o endereco do GitHub Pages deste repositorio no celular e use 'Instalar app' (Android/Chrome) ou 'Adicionar a Tela de Inicio' (iPhone/Safari). Prototipo de demonstracao.
+App de casal. Publicado em https://micro-sas-antonio.github.io/kizuna-pwa/
+
+- Roletas (Slim e Hot): edite `roletas.json`, troque `semana` e rode `node tools/gerar-roletas.js`.
+- O APK Android e gerado no repositorio privado kizuna-app (GitHub Actions).
