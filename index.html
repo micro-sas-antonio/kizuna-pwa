@@ -17,25 +17,29 @@
 <div id="app">
   <div class="bgimg" id="bgimg"></div>
   <header class="top">
-    <div class="pair" id="topPair"><i class="a" id="avA">M</i><i class="b" id="avB">A</i></div>
+    <button class="pair" id="topPair" type="button" aria-label="Perfil"><i class="a" id="avA">M</i><i class="b" id="avB">A</i></button>
     <div class="ttl"><b id="coupleName">Nós dois</b><small id="topSub">Nível 1</small></div>
     <button class="flame" id="flame" type="button" aria-label="Sequência de dias">🔥 <b id="streakN">1</b></button>
+    <button class="gear" id="gear" type="button" aria-label="Perfil e configurações">⚙️</button>
   </header>
 
   <main id="main">
-    <section class="view" id="v-inicio"></section>
-    <section class="view" id="v-jardim" hidden></section>
+    <section class="view" id="v-jardim"></section>
     <section class="view" id="v-roleta" hidden></section>
     <section class="view" id="v-noite" hidden></section>
+    <section class="view" id="v-presentes" hidden></section>
+    <section class="view" id="v-hot" hidden></section>
+    <section class="view" id="v-ciclo" hidden></section>
     <section class="view" id="v-perfil" hidden></section>
   </main>
 
   <nav class="nav" id="nav">
-    <button type="button" data-v="inicio" class="on"><span>🏠</span>Início</button>
-    <button type="button" data-v="jardim"><span>🌸</span>Jardim</button>
-    <button type="button" data-v="roleta"><span>🎡</span>Roletas</button>
+    <button type="button" data-v="jardim" class="on"><span>🌸</span>Jardim</button>
+    <button type="button" data-v="roleta"><span>🎡</span>Roleta</button>
     <button type="button" data-v="noite"><span>🎬</span>Noite</button>
-    <button type="button" data-v="perfil"><span>👤</span>Perfil</button>
+    <button type="button" data-v="presentes"><span>🎁</span>Presentes</button>
+    <button type="button" data-v="hot"><span>🔥</span>Hot</button>
+    <button type="button" data-v="ciclo" id="navCiclo" hidden><span>🌙</span>Ciclo</button>
   </nav>
 
   <div id="page" class="page" hidden></div>
@@ -47,7 +51,11 @@
 <script src="pools.js"></script>
 <script src="dados.js"></script>
 <script src="roletas.js"></script>
+<script src="hot-dados.js"></script>
 <script src="app.js"></script>
 <script src="features.js"></script>
+<script src="pair.js"></script>
+<script src="legado-dados.js"></script>
+<script src="legado.js"></script>
 </body>
 </html>

@@ -11,9 +11,11 @@ const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[
 /* A lista fica em roletas.js / roletas.json. Se tiver internet, o app pega a lista nova da semana sozinho. */
 try{const c=JSON.parse(localStorage.getItem("kz_roletas")||"null");if(c&&c.semana>KZ_ROLETAS.semana&&c.slim&&c.hot)window.KZ_ROLETAS=c}catch(e){}
 function onboard(){
-  if(S.onboard)return;
-  openSheet('<h3>Bem-vindos ao Kizuna 2.0 💕</h3><p class="sm mut" style="margin-top:6px">Como vocês se chamam?</p><label class="lb">Seu nome</label><input class="field" id="o1" maxlength="18" placeholder="Seu nome"><label class="lb">Nome do seu amor</label><input class="field" id="o2" maxlength="18" placeholder="Nome do seu amor"><button class="btn block" id="oo" type="button">Começar</button>',sh=>{
-    $("#oo",sh).onclick=()=>{S.names.a=$("#o1",sh).value.trim()||"Você";S.names.b=$("#o2",sh).value.trim()||"Amor";S.onboard=1;save();closeSheet();K.render(K.getCur())}});
+  if(S.onboard){K.dailyFlow();return}
+  let role="";
+  openSheet('<h3>Bem-vindos ao Kizuna 2.0 💕</h3><p class="sm mut" style="margin-top:6px">Como vocês se chamam?</p><label class="lb">Como você prefere ser chamado(a)?</label><input class="field" id="o1" maxlength="18" placeholder="Seu nome"><label class="lb">Como chama o seu amor?</label><input class="field" id="o2" maxlength="18" placeholder="Nome do seu amor"><label class="lb">Eu sou</label><div class="chips"><button class="chip" data-r="ela" type="button">👩 Ela</button><button class="chip" data-r="ele" type="button">👨 Ele</button></div><button class="btn block" id="oo" type="button">Começar</button>',sh=>{
+    $$("[data-r]",sh).forEach(b=>b.onclick=()=>{role=b.dataset.r;$$("[data-r]",sh).forEach(x=>x.classList.toggle("on",x===b))});
+    $("#oo",sh).onclick=()=>{S.names.a=$("#o1",sh).value.trim()||"Você";S.names.b=$("#o2",sh).value.trim()||"Amor";S.role=role;S.onboard=1;save();closeSheet();K.render(K.getCur());setTimeout(K.dailyFlow,300)}});
 }
 K.afterBoot=function(){
   setTimeout(onboard,500);
@@ -21,54 +23,54 @@ K.afterBoot=function(){
     if(j&&j.semana>KZ_ROLETAS.semana&&Array.isArray(j.slim)&&Array.isArray(j.hot)&&j.slim.length>5&&j.hot.length>5){window.KZ_ROLETAS=j;try{localStorage.setItem("kz_roletas",JSON.stringify(j))}catch(e){}}}).catch(()=>{})}catch(e){}
   if(location.hash&&location.hash.indexOf("KZ1.")>=0){const h=decodeURIComponent(location.hash.slice(1));history.replaceState(null,"",location.pathname+location.search);K.useCode(h)}
 };
-const COLS={slim:["#d1457f","#8e3ec0","#e0788f","#5a4bd1"],hot:["#c2185b","#7a0f2e","#e0394a","#5b1a6e"]};
-let rotNow=0,spinning=false,mode="slim",nTasks=1;
+const COLS={slim:["#d1457f","#8e3ec0","#e0788f","#5a4bd1"],hot:["#c2185b","#7a0f2e","#e0394a","#5b1a6e"],dec:["#2a9fd6","#8e3ec0","#e0788f","#2f8a5b"]};
+const NO={fmt:"serie",a:new Set(["romance"]),b:new Set(["acao"]),out:[]};
+let rotNow=0,spinning=false,nTasks=1,rmode="tarefas";
 function drawWheel(cv,list,md){
-  const N=list.length,sz=640,ctx=cv.getContext("2d");cv.width=cv.height=sz;const r=sz/2,seg=Math.PI*2/N;
+  const N=list.length,sz=640,ctx=cv.getContext("2d");cv.width=cv.height=sz;const r=sz/2,seg=Math.PI*2/N,fs=N>16?34:46;
   for(let i=0;i<N;i++){const a0=-Math.PI/2+i*seg;ctx.beginPath();ctx.moveTo(r,r);ctx.arc(r,r,r-4,a0,a0+seg);ctx.closePath();ctx.fillStyle=COLS[md][i%COLS[md].length];ctx.fill();
     ctx.strokeStyle="rgba(255,255,255,.35)";ctx.lineWidth=1.5;ctx.stroke();
-    ctx.save();ctx.translate(r,r);ctx.rotate(a0+seg/2);ctx.font="34px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.translate(r*.78,0);ctx.rotate(Math.PI/2);ctx.fillText(list[i].e,0,0);ctx.restore()}
+    ctx.save();ctx.translate(r,r);ctx.rotate(a0+seg/2);ctx.font=fs+"px 'Segoe UI Emoji','Apple Color Emoji','Noto Color Emoji',sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.translate(r*.78,0);ctx.rotate(Math.PI/2);ctx.fillText(list[i].e,0,0);ctx.restore()}
 }
-R.roleta=function(el){
-  mode=K.roletaModo||mode;K.roletaModo=null;
-  const RL=KZ_ROLETAS,list=RL[mode],hot=mode==="hot";
-  const gate=hot&&!S.roleta.adult;
-  el.innerHTML='<div class="seg" style="margin-top:8px"><button type="button" data-m="slim" class="'+(!hot?"on":"")+'">🎡 Slim</button><button type="button" data-m="hot" class="hot '+(hot?"on":"")+'">🔥 Hot</button></div>'+
-  (gate?'<div class="card"><h3>Roleta Hot 🔥 · só para maiores de 18</h3><p class="sm" style="margin-top:6px">Missões mais quentes para casais, sempre com carinho e bom gosto. Tudo é opcional: qualquer um pode dizer “hoje não” sem explicar.</p><button class="btn hot block" id="adult" type="button">Tenho 18 anos ou mais, entrar</button></div>':
-  '<p class="sm mut" style="margin-top:10px;text-align:center">'+(hot?"Missões quentes a dois (com consentimento sempre).":"Tarefas leves e fofas para o dia a dia.")+'</p>'+
-  '<div class="chips" style="justify-content:center"><button class="chip'+(nTasks===1?" on":"")+'" data-n="1" type="button">1 tarefa</button><button class="chip'+(nTasks===2?" on":"")+'" data-n="2" type="button">2 tarefas (1 para cada)</button></div>'+
-  '<div class="wheelbox"><div class="ptr"></div><canvas id="wh"></canvas><button class="hub" id="hub" type="button" aria-label="Girar">🎯</button></div>'+
-  '<button class="btn block'+(hot?" hot":"")+'" id="spin" type="button">Girar a roleta</button><div id="res"></div>'+
-  '<div class="card"><div class="row sp"><h3>Tarefas desta semana</h3><span class="pill">'+list.length+'</span></div><p class="xs mut">Lista '+esc(RL.semana)+' · atualizada em '+esc(RL.atualizadoEm)+'. Troca a cada 7 dias.</p><button class="chip" id="seeL" type="button" style="margin-top:8px">Ver a lista inteira</button><div id="lst"></div></div>'+
-  (hot?'<div class="card"><h3>Esquentando a noite</h3><p class="xs mut">Três ideias novas por dia.</p>'+[0,1,2].map(i=>{const h=pick(HOT,i);return '<button type="button" class="pick" data-h="'+i+'" style="width:100%;text-align:left"><b>🔥 '+esc(h.t)+'</b><div class="xs mut">Toque para ver como fazer</div></button>'}).join("")+'</div>':''));
-  $$("[data-m]",el).forEach(b=>b.onclick=()=>{mode=b.dataset.m;R.roleta(el)});
-  const ad=$("#adult",el);if(ad){ad.onclick=()=>{S.roleta.adult=true;save();R.roleta(el)};return}
-  $$("[data-n]",el).forEach(b=>b.onclick=()=>{nTasks=+b.dataset.n;R.roleta(el)});
-  $$("[data-h]",el).forEach(b=>b.onclick=()=>{const h=pick(HOT,+b.dataset.h);openSheet('<h3>🔥 '+esc(h.t)+'</h3><p style="margin-top:8px">'+esc(h.d)+'</p><p class="xs mut" style="margin-top:8px">Tudo é opcional. Qualquer um pode parar a qualquer momento.</p>')});
-  $("#seeL",el).onclick=()=>{$("#lst",el).innerHTML='<div class="lista">'+list.map((t,i)=>'<div>'+t.e+' '+esc(t.t)+(t.j?' <span class="xs mut">(a dois)</span>':'')+'</div>').join("")+'</div>';$("#seeL",el).remove()};
-  const cv=$("#wh",el);drawWheel(cv,list,mode);cv.style.transform="rotate("+rotNow+"deg)";
+const DEC_FILME=[["💕","Romance","romance"],["😂","Comédia","comedia"],["💥","Ação","acao"],["🕵️","Suspense","suspense"],["👻","Terror","terror"],["🧙","Fantasia","fantasia"],["🚀","Ficção","ficcao"],["😢","Drama","drama"],["🔪","Crime","crime"],["🗺️","Aventura","aventura"],["🍳","Culinária","culinaria"],["🎲","Surpresa",""]].map(a=>({e:a[0],t:a[1],g:a[2]}));
+const DEC_COMIDA=[["🍕","Pizza"],["🍔","Hambúrguer"],["🍣","Japonês"],["🍝","Massa"],["🥩","Churrasco"],["🌮","Mexicano"],["🍦","Sorvete ou açaí"],["🥟","Pastel"],["🍛","Strogonoff"],["🥗","Algo leve e saudável"],["🍫","Só sobremesa"],["👩‍🍳","Cozinhar em casa"]].map(a=>({e:a[0],t:a[1]}));
+/* roleta generica: serve para a Roleta do casal e para a Roleta Hot */
+K.wheelUI=function(el,cfg){
+  const list=cfg.list,hot=!!cfg.hot,dec=!!cfg.decide,key=cfg.key,md=cfg.colors||(hot?"hot":"slim");
+  S.roleta.hist[key]=S.roleta.hist[key]||[];
+  el.innerHTML=(dec?'':'<div class="chips" style="justify-content:center"><button class="chip'+(nTasks===1?" on":"")+'" data-n="1" type="button">1 tarefa</button><button class="chip'+(nTasks===2?" on":"")+'" data-n="2" type="button">2 tarefas (1 para cada)</button></div>')+
+   '<div class="wheelbox"><div class="ptr"></div><canvas id="wh"></canvas><button class="hub" id="hub" type="button" aria-label="Girar">🎯</button></div>'+
+   '<button class="btn block'+(hot?" hot":"")+'" id="spin" type="button">Girar a roleta</button><div id="res"></div>'+
+   (dec?'':'<div class="card"><div class="row sp"><h3>Tarefas desta semana</h3><span class="pill">'+list.length+'</span></div><p class="xs mut">Lista '+esc(KZ_ROLETAS.semana)+' · atualizada em '+esc(KZ_ROLETAS.atualizadoEm)+'. Troca a cada 7 dias.</p><button class="chip" id="seeL" type="button" style="margin-top:8px">Ver a lista inteira</button><div id="lst"></div></div>');
+  $$("[data-n]",el).forEach(b=>b.onclick=()=>{nTasks=+b.dataset.n;K.wheelUI(el,cfg)});
+  const sl=$("#seeL",el);if(sl)sl.onclick=()=>{$("#lst",el).innerHTML='<div class="lista">'+list.map(t=>'<div>'+t.e+' '+esc(t.t)+(t.j?' <span class="xs mut">(a dois)</span>':'')+'</div>').join("")+'</div>';sl.remove()};
+  const cv=$("#wh",el);drawWheel(cv,list,md);cv.style.transform="rotate("+rotNow+"deg)";
   const seg=360/list.length;
   function spinTo(idx){return new Promise(res=>{const target=360-(idx*seg+seg/2);rotNow+=360*5+((target-(rotNow%360))+360)%360;cv.style.transform="rotate("+rotNow+"deg)";setTimeout(res,reduce?60:4300)})}
-  function nextIdx(avoid){const h=S.roleta.hist[mode];let i,t=0;do{i=rnd(list.length);t++}while((h.includes(i)||avoid===i)&&t<80);h.push(i);if(h.length>8)h.shift();return i}
+  function nextIdx(avoid){const h=S.roleta.hist[key];let i,t=0;do{i=rnd(list.length);t++}while((h.includes(i)||avoid===i)&&t<80);h.push(i);if(h.length>Math.min(8,list.length-2))h.shift();return i}
   async function go(){
     if(spinning)return;spinning=true;const res=$("#res",el);res.innerHTML="";
     try{
       const a=nextIdx(),first=list[a];await spinTo(a);
-      if(nTasks===1){showOne(res,first)}
+      if(dec||nTasks===1)showOne(res,first);
       else{toast("Agora a segunda tarefa…");await new Promise(r=>setTimeout(r,700));const b=nextIdx(a),second=list[b];await spinTo(b);showTwo(res,first,second)}
     }finally{spinning=false}
   }
   $("#spin",el).onclick=go;$("#hub",el).onclick=go;
-  function head(){return hot?" hot":""}
+  const head=hot?" hot":"";
   function showOne(res,t){
-    res.innerHTML='<div class="result'+head()+'"><div class="e">'+t.e+'</div><p class="t">'+esc(t.t)+'</p>'+(t.j?'<div class="boss" id="boss"><b>👑 Tarefa a dois.</b> Sorteando quem comanda…</div>':'')+'<button class="btn block'+(hot?" hot":"")+'" id="okT" type="button">✅ Cumprimos! (+10 XP)</button><button class="btn ghost block" id="skipT" type="button">Hoje não, girar de novo</button></div>';
+    if(dec){res.innerHTML='<div class="result"><div class="e">'+t.e+'</div><p class="t">Hoje vai de: '+esc(t.t)+'!</p>'+(t.g!==undefined?'<button class="btn block" id="tt" type="button">Sortear um título de '+esc(t.t)+'</button>':'')+'<button class="btn ghost block" id="again" type="button">Girar de novo</button></div>';
+      const tt=$("#tt",res);if(tt)tt.onclick=()=>{NO.a=new Set(t.g?[t.g]:[]);NO.b=new Set();NO.out=[];K.go("noite")};
+      $("#again",res).onclick=()=>{res.innerHTML="";go()};fx(t.e,8);return}
+    const jas=["golden_jasmine","imperial_lily","midnight_lotus"].includes(S.species);
+    res.innerHTML='<div class="result'+head+'"><div class="e">'+t.e+'</div><p class="t">'+esc(t.t)+'</p>'+(jas?'<div class="boss"><b>🎁 Giro surpresa ('+esc(K.SPECIES[S.species].s)+'):</b> '+esc(pick(PRIZES))+'</div>':'')+(t.j?'<div class="boss" id="boss"><b>👑 Tarefa a dois.</b> Sorteando quem comanda…</div>':'')+'<button class="btn block'+(hot?" hot":"")+'" id="okT" type="button">✅ Cumprimos! (+10 XP)</button><button class="btn ghost block" id="skipT" type="button">Hoje não, girar de novo</button></div>';
     if(t.j)sortBoss($("#boss",res));
     $("#okT",res).onclick=()=>done(res);$("#skipT",res).onclick=()=>{res.innerHTML="";go()};
   }
   function showTwo(res,t1,t2){
     const A=S.names.a,B=S.names.b,flip=rnd(2)===0,o1=flip?A:B,o2=flip?B:A;
     const line=(t,o)=>'<div class="boss"><b>'+esc(o)+'</b> · '+t.e+' '+esc(t.t)+(t.j?' <span class="xs mut">(a dois, comanda '+esc(o)+')</span>':'')+'</div>';
-    res.innerHTML='<div class="result'+head()+'"><b>As duas tarefas foram sorteadas!</b>'+line(t1,o1)+line(t2,o2)+'<button class="btn block'+(hot?" hot":"")+'" id="okT" type="button">✅ Cumprimos as duas! (+20 XP)</button></div>';
+    res.innerHTML='<div class="result'+head+'"><b>As duas tarefas foram sorteadas!</b>'+line(t1,o1)+line(t2,o2)+'<button class="btn block'+(hot?" hot":"")+'" id="okT" type="button">✅ Cumprimos as duas! (+20 XP)</button></div>';
     $("#okT",res).onclick=()=>done(res,2);
   }
   function sortBoss(box){
@@ -76,9 +78,19 @@ R.roleta=function(el){
     setTimeout(()=>{clearInterval(iv);const w=rnd(2);box.innerHTML='<b>👑 Hoje comanda:</b> '+esc(names[w])+'<br><span class="sm">'+esc(names[1-w])+' aproveita e segue as ordens com carinho 😉</span>';fx("👑",6)},1600)}
   function done(res,n){n=n||1;S.roleta.feitas+=n;save();K.missionDone("spin");res.innerHTML='<div class="result"><div class="e">🎉</div><p class="t">Que lindo! Missão cumprida.</p></div>';fx(hot?["🔥","💋","❤️"]:["💖","✨"],14);gain(10*n,4)}
 };
+R.roleta=function(el){
+  const RL=KZ_ROLETAS;
+  el.innerHTML='<h2 style="margin:12px 2px 0;font-size:22px">Roleta do casal 🎡</h2><div class="chips" style="margin-bottom:4px">'+[["tarefas","🎯 Tarefas"],["filme","🎬 Que filme?"],["comida","🍕 Que comida?"],["quem","👑 Quem escolhe?"]].map(a=>'<button class="chip'+(rmode===a[0]?" on":"")+'" data-rm="'+a[0]+'" type="button">'+a[1]+'</button>').join("")+'</div><div id="wv"></div>';
+  $$("[data-rm]",el).forEach(b=>b.onclick=()=>{rmode=b.dataset.rm;R.roleta(el)});
+  const box=$("#wv",el);
+  if(rmode==="tarefas")K.wheelUI(box,{list:RL.slim,key:"slim"});
+  else if(rmode==="filme")K.wheelUI(box,{list:DEC_FILME,key:"dfilme",decide:1,colors:"dec"});
+  else if(rmode==="comida")K.wheelUI(box,{list:DEC_COMIDA,key:"dcomida",decide:1,colors:"dec"});
+  else{const l=[];for(let i=0;i<10;i++)l.push({e:i%2?"💗":"💙",t:i%2?S.names.b:S.names.a});K.wheelUI(box,{list:l,key:"dquem",decide:1,colors:"dec"})}
+};
 
 /* =====================  NOITE: filme / serie / anime  ===================== */
-const NO={fmt:"serie",a:new Set(["romance"]),b:new Set(["acao"]),out:[]};
+
 function sortear(){
   const all=KZ_MEDIA[NO.fmt],seen=S.seen[NO.fmt];
   const sc=all.map(m=>{const a=m.g.filter(x=>NO.a.has(x)).length,b=m.g.filter(x=>NO.b.has(x)).length;return {m,a,b,s:(a>0?10:0)+(b>0?10:0)+Math.min(a+b,4),r:Math.random()}});
@@ -90,6 +102,8 @@ function sortear(){
   const top=fresh.slice(0,3);top.forEach(x=>S.seen[NO.fmt].push(x.m.t));if(S.seen[NO.fmt].length>60)S.seen[NO.fmt].splice(0,20);save();
   NO.out=top.map(x=>({t:x.m.t,g:x.m.g,pct:any?Math.min(99,52+(x.a>0?20:0)+(x.b>0?20:0)+Math.min(x.a+x.b,3)*2):70}));
 }
+const STREAMS=[["netflix","Netflix","https://www.netflix.com/search?q="],["prime","Prime Video","https://www.primevideo.com/search/ref=atv_nb_sug?phrase="],["disney","Disney+","https://www.disneyplus.com/search/"],["max","Max","https://play.max.com/search?q="],["globoplay","Globoplay","https://globoplay.globo.com/busca/?q="],["apple","Apple TV+","https://tv.apple.com/search?term="],["paramount","Paramount+","https://www.paramountplus.com/search/?q="],["crunchy","Crunchyroll","https://www.crunchyroll.com/search?q="],["youtube","YouTube","https://www.youtube.com/results?search_query="]];
+function ondeLinks(t){const my=STREAMS.filter(x=>S.streams.includes(x[0]));if(!my.length)return '<a class="chip" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(t+" onde assistir")+'">Onde assistir ›</a>';return my.map(x=>'<a class="chip" target="_blank" rel="noopener" href="'+x[2]+encodeURIComponent(t)+'">▶ '+x[1]+'</a>').join(" ")}
 R.noite=function(el){
   if(!NO.out.length)sortear();
   const gl=Object.fromEntries(KZ_GENEROS);
@@ -98,10 +112,12 @@ R.noite=function(el){
    '<div class="seg" style="margin-top:10px;grid-template-columns:repeat(3,1fr)">'+[["serie","📺 Série"],["filme","🎞️ Filme"],["anime","🍥 Anime"]].map(a=>'<button type="button" data-f="'+a[0]+'" class="'+(NO.fmt===a[0]?"on":"")+'">'+a[1]+'</button>').join("")+'</div>'+
    '<p class="sm" style="margin-top:12px"><b>'+esc(S.names.a)+'</b> quer</p><div class="chips">'+chips("a")+'</div><p class="sm" style="margin-top:12px"><b>'+esc(S.names.b)+'</b> quer</p><div class="chips">'+chips("b")+'</div>'+
    '<button class="btn block" id="sort" type="button">🎲 Sortear outras opções</button></div>'+
-   '<div id="out">'+NO.out.map(o=>'<div class="pick"><div class="row sp"><b>'+esc(o.t)+'</b><span class="pill">'+o.pct+'%</span></div><div class="xs mut" style="margin:3px 0 8px">'+o.g.map(x=>gl[x]).join(" · ")+'</div><a class="chip" target="_blank" rel="noopener" href="https://www.google.com/search?q='+encodeURIComponent(o.t+" onde assistir")+'">Onde assistir ›</a></div>').join("")+'</div>'+
+   '<div class="card"><b class="sm">Seus streamings</b><p class="xs mut">Marque os que vocês têm. Os botões abaixo abrem a busca direto neles.</p><div class="chips">'+STREAMS.map(x=>'<button class="chip'+(S.streams.includes(x[0])?" on":"")+'" data-st="'+x[0]+'" type="button">'+x[1]+'</button>').join("")+'</div></div>'+
+   '<div id="out">'+NO.out.map(o=>'<div class="pick"><div class="row sp"><b>'+esc(o.t)+'</b><span class="pill">'+o.pct+'%</span></div><div class="xs mut" style="margin:3px 0 8px">'+o.g.map(x=>gl[x]).join(" · ")+'</div><div class="chips" style="margin:0">'+ondeLinks(o.t)+'</div></div>').join("")+'</div>'+
    '<div class="card"><h3>Antes do play 🍿</h3><p class="sm">Façam pipoca, apaguem a luz e deixem o celular longe. Depois, que tal girar a roleta?</p><button class="btn ghost block" id="toR" type="button">Ir para as roletas</button></div>';
   $$("[data-f]",el).forEach(b=>b.onclick=()=>{NO.fmt=b.dataset.f;sortear();R.noite(el)});
   $$("[data-w]",el).forEach(b=>b.onclick=()=>{const s=NO[b.dataset.w],k=b.dataset.k;s.has(k)?s.delete(k):s.add(k);sortear();R.noite(el)});
+  $$("[data-st]",el).forEach(b=>b.onclick=()=>{const k=b.dataset.st,i=S.streams.indexOf(k);i<0?S.streams.push(k):S.streams.splice(i,1);save();R.noite(el)});
   $("#sort",el).onclick=()=>{sortear();R.noite(el);fx("🎬",4)};
   $("#toR",el).onclick=()=>K.go("roleta");
 };
@@ -145,6 +161,29 @@ function detectStarts(dates){
   const per=med(cl.filter(c=>c.length>1).map(c=>c.length).filter(n=>n>=2&&n<=10));
   return {starts:starts.slice(-12),len:med(diffs)||0,per:per||0}}
 const COR=f=>KZ_FASES[f].cor;
+const MESES=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+let calYM=null;
+function drawMonth(b,c,mine){
+  const now=new Date();if(!calYM)calYM={y:now.getFullYear(),m:now.getMonth()};
+  const {y,m}=calYM,first=new Date(y,m,1,12),lead=first.getDay(),n=new Date(y,m+1,0).getDate(),starts=(c.starts||[]);
+  let h='<div class="row sp"><button class="chip" data-mv="-1" type="button">‹</button><b>'+MESES[m]+' '+y+'</b><button class="chip" data-mv="1" type="button">›</button></div><div class="cal wd">'+["D","S","T","Q","Q","S","S"].map(x=>"<div>"+x+"</div>").join("")+'</div><div class="cal">';
+  for(let i=0;i<lead;i++)h+='<div style="background:none"></div>';
+  const todayS=iso(now);
+  for(let d=1;d<=n;d++){const dt=new Date(y,m,d,12),ds=iso(dt),x=info(c,dt);
+    h+='<div data-d="'+ds+'" class="'+(ds===todayS?"today ":"")+(starts.includes(ds)?"pstart ":"")+(x&&(x.projected||dt>now)?"proj":"")+'" style="'+(x?"background:"+COR(x.fase):"")+'">'+d+'</div>'}
+  h+='</div>';
+  const mc=$("#mc",b);mc.innerHTML=h;
+  $$("[data-mv]",mc).forEach(bt=>bt.onclick=()=>{let nm=calYM.m+ +bt.dataset.mv,ny=calYM.y;if(nm<0){nm=11;ny--}if(nm>11){nm=0;ny++}calYM={y:ny,m:nm};drawMonth(b,c,mine)});
+  $$("[data-d]",mc).forEach(el=>el.onclick=()=>{const ds=el.dataset.d,x=info(c,dd(ds));const F=x&&KZ_FASES[x.fase];const isStart=starts.includes(ds),fut=dd(ds)>new Date();
+    openSheet('<h3>'+brDate(dd(ds))+'/'+dd(ds).getFullYear()+'</h3>'+(x?'<p style="margin-top:6px"><span class="phasebadge" style="background:'+F.cor+'">'+F.ic+" "+F.n+'</span> <span class="sm mut">dia '+x.day+' do ciclo'+(x.projected?" (previsão)":"")+'</span></p><p class="sm" style="margin-top:8px">'+esc(F.sente)+'</p>':'<p class="sm mut" style="margin-top:6px">Sem dados para este dia.</p>')+
+      (mine&&!fut&&!isStart?'<button class="btn block" id="ms" type="button">🩸 A menstruação começou neste dia</button>':'')+(mine&&isStart?'<button class="btn ghost block" id="rs" type="button">Remover este início</button>':''),sh=>{
+      const ms=$("#ms",sh);if(ms)ms.onclick=()=>{const st=(S.ciclo&&S.ciclo.starts||[]).filter(z=>z!==ds);st.push(ds);S.ciclo=Object.assign({n:S.names.a,len:28,per:5},S.ciclo,{starts:st.sort().slice(-12)});save();closeSheet();toast("Anotado! Calendário atualizado");K.pages.ciclo()};
+      const rs=$("#rs",sh);if(rs)rs.onclick=()=>{S.ciclo.starts=S.ciclo.starts.filter(z=>z!==ds);save();closeSheet();K.pages.ciclo()}})})}
+function drawRanges(b,c,inf){
+  const start=new Date();start.setHours(12);start.setDate(start.getDate()-(inf.day-1));const out=[];let cur=null;
+  for(let d=1;d<=inf.len;d++){const f=faseDe(d,inf.len,inf.per);if(!cur||cur.f!==f){cur={f,a:d,b:d};out.push(cur)}else cur.b=d}
+  const at=n=>{const t=new Date(start);t.setDate(t.getDate()+n-1);return brDate(t)};
+  $("#rg",b).innerHTML=out.map(r=>'<div class="rng"><span><i style="background:'+COR(r.f)+'"></i>'+KZ_FASES[r.f].ic+" "+KZ_FASES[r.f].n+'</span><b>'+(r.a===r.b?at(r.a):at(r.a)+" a "+at(r.b))+'</b></div>').join("")}
 K.pages.ciclo=function(){
   let tab=(S.ciclo||S.parceiro)?"dicas":"cad";let draft=null;
   openPage("Ciclo e dicas 🌙",'<div id="cy"></div>',pb=>{draw();
@@ -156,11 +195,12 @@ K.pages.ciclo=function(){
     function dicas(b,c,inf){
       if(!inf){b.innerHTML='<div class="card"><h3>Ainda não tem ciclo</h3><p class="sm mut" style="margin-top:6px">Ela cadastra as datas (ou importa de outro app) na aba “Cadastrar ciclo”. Se o ciclo foi enviado pelo parceiro, cole o código em Perfil.</p><button class="btn block" id="go" type="button">Cadastrar agora</button></div>';$("#go",b).onclick=()=>{tab="cad";draw()};return}
       const F=KZ_FASES[inf.fase],tips=tipsFor(inf),mine=!!S.ciclo;
-      let cal="";for(let i=0;i<14;i++){const d=new Date();d.setDate(d.getDate()+i);const x=info(c,d);if(x)cal+='<div title="'+KZ_FASES[x.fase].n+'" style="background:'+COR(x.fase)+(i?"":";outline:2px solid #fff")+'">'+d.getDate()+'</div>'}
-      b.innerHTML='<div class="card"><div class="row sp"><span class="phasebadge" style="background:'+F.cor+'">'+F.ic+" "+F.n+'</span><span class="sm mut">Dia '+inf.day+' de '+inf.len+'</span></div><p class="sm" style="margin-top:10px"><b>Ciclo de '+esc(c.n||"ela")+'</b>'+(mine?"":" (recebido do parceiro)")+'</p><p class="sm mut" style="margin-top:4px">'+esc(F.sente)+'</p>'+(inf.old?'<p class="sm err" style="margin-top:8px">As datas estão antigas. Marque o início da última menstruação para as dicas ficarem certas.</p>':'')+'</div>'+
+      b.innerHTML='<div class="card"><div class="row sp"><span class="phasebadge" style="background:'+F.cor+'">'+F.ic+" "+F.n+'</span><span class="sm mut">Dia '+inf.day+' de '+inf.len+'</span></div><p class="sm" style="margin-top:10px"><b>Ciclo de '+esc(c.n||"ela")+'</b>'+(mine?"":" (recebido do parceiro)")+'</p><p class="sm mut" style="margin-top:4px">'+esc(F.sente)+'</p>'+(inf.old?'<p class="sm err" style="margin-top:8px">As datas estão antigas. Toque no primeiro dia da última menstruação no calendário para atualizar.</p>':'')+'</div>'+
         '<h3 style="margin:16px 2px 0">Dicas para hoje</h3>'+tips.map((t,i)=>'<div class="card"><div class="tipbox"><b>'+(i===0?"⭐ ":"")+esc(t.t)+'</b><span class="sm">'+esc(t.b)+'</span></div></div>').join("")+
-        '<div class="card"><h3>Próximos 14 dias</h3><div class="cal">'+cal+'</div><div class="legend">'+Object.keys(KZ_FASES).map(k=>'<span><i style="background:'+COR(k)+'"></i>'+KZ_FASES[k].n+'</span>').join("")+'</div><p class="sm" style="margin-top:10px">Próxima menstruação por volta de <b>'+brDate(inf.next)+'</b>.</p><p class="xs mut" style="margin-top:6px">Estimativa baseada nas datas informadas. Não substitui orientação médica e não é método contraceptivo.</p></div>'+
-        (mine?'<button class="btn block" id="env" type="button">Enviar dica de hoje ao parceiro</button>':'')+'';
+        '<div class="card"><h3>Calendário</h3><div id="mc"></div><div class="legend">'+Object.keys(KZ_FASES).map(k=>'<span><i style="background:'+COR(k)+'"></i>'+KZ_FASES[k].n+'</span>').join("")+'</div><p class="xs mut" style="margin-top:6px">Toque num dia para ver a fase'+(mine?" ou marcar o início da menstruação":"")+'. Dias mais claros são previsões.</p></div>'+
+        '<div class="card"><h3>Este ciclo, dia a dia</h3><div id="rg"></div><p class="sm" style="margin-top:10px">Próxima menstruação por volta de <b>'+brDate(inf.next)+'</b>.</p><p class="xs mut" style="margin-top:6px">Estimativa baseada nas datas informadas. Não substitui orientação médica e não é método contraceptivo.</p></div>'+
+        (mine?'<button class="btn block" id="env" type="button">Enviar dica de hoje ao parceiro</button>':'');
+      drawMonth(b,c,mine);drawRanges(b,c,inf);
       const env=$("#env",b);if(env)env.onclick=()=>{const t=tips[0];share("💕 Hoje é o dia "+inf.day+" do ciclo de "+(c.n||S.names.a)+" ("+F.n+").\n"+t.t+": "+t.b,makeCode({t:"c",n:c.n||S.names.a,s:c.starts.slice(-6),l:c.len,p:c.per}))}}
     function cad(b,c){
       const cc=S.ciclo||{n:S.names.a,starts:[],len:28,per:5};
@@ -212,7 +252,8 @@ K.pages.presentes=function(){
       '<input class="field" id="gm" maxlength="80" placeholder="Escreva uma mensagem (opcional)"><button class="btn block" id="send" type="button">Enviar presente</button><p class="xs mut" style="margin-top:6px">1 presente grátis por dia. Veja anúncios (até 5 por dia) para ganhar mais.</p></div>'+
       '<div class="card"><div class="row sp"><h3>Minha coleção</h3><span class="pill">'+got+'/'+GIFTS.length+'</span></div><p class="xs mut">Presentes que você recebeu. Colecione todos!</p><div class="gifts">'+GIFTS.map(g=>'<button type="button" data-c="'+g.k+'" style="'+(cnt[g.k]?"":"opacity:.35;filter:grayscale(1)")+'">'+g.ic+'<small>'+g.n+'</small><span class="n">'+(cnt[g.k]?"x"+cnt[g.k]:"")+'</span></button>').join("")+'</div>'+
       (gf.recv.length?'<div class="hr"></div>'+gf.recv.slice(-5).reverse().map(g=>'<div class="sm" style="padding:4px 0">'+gOf(g.k).ic+' de <b>'+esc(g.f||"alguém")+'</b>'+(g.m?': “'+esc(g.m)+'”':'')+'</div>').join(""):'<p class="sm mut" style="margin-top:8px">Nenhum presente recebido ainda. Peça para o seu amor te enviar um 😉</p>')+'</div>'+
-      '<div class="card"><p class="sm"><b>Como o parceiro recebe?</b> Depois de enviar, o app abre o compartilhamento (WhatsApp etc.). Ao tocar no link, o presente aparece animado e entra na coleção dele(a).</p></div>';
+      '<button class="card" id="alb" type="button" style="width:100%;text-align:left;display:block"><b>📸 Álbum Polaroid</b><div class="xs mut" style="margin-top:3px">'+S.album.length+' foto(s) · guardem as lembranças de vocês ›</div></button><div class="card"><p class="sm"><b>Como o parceiro recebe?</b> Depois de enviar, o app abre o compartilhamento (WhatsApp etc.). Ao tocar no link, o presente aparece animado e entra na coleção dele(a).</p></div>';
+    $("#alb",pb).onclick=()=>K.pages.album();
     $$("[data-g]",pb).forEach(b=>b.onclick=()=>{sel=b.dataset.g;draw()});
     $$("[data-c]",pb).forEach(b=>b.onclick=()=>{const g=gf.recv.filter(x=>x.k===b.dataset.c).pop();if(g)playGift(g);else toast("Ainda não recebeu este")});
     $("#ad",pb).onclick=()=>K.adOverlay(()=>{gf.credits++;gf.ads++;save();toast("+1 presente 🎁");draw()});
@@ -249,5 +290,5 @@ K.pages.album=function(){
     for(const p of A){const u=await IDB.get("alb_"+p.id);const el=$('[data-i="'+p.id+'"]',pb);if(el&&u)el.style.backgroundImage="url("+u+")"}
    }})};
 
-K.boot();
+R.presentes=()=>K.pages.presentes();R.ciclo=()=>K.pages.ciclo();
 })();
